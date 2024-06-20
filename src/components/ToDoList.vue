@@ -39,7 +39,7 @@ function deleteTodo(todo) {
     <ul>
         <li v-for="item in items"  >
             <span :class="{ completed: item.isCompleted }" @click="toggleCompleted(item)">{{ item.text }} </span> 
-            <button style="color: red"  @click="deleteTodo(item)">Delete</button>
+            <button  @click="deleteTodo(item)" class="btn btn-danger">Delete</button>
         </li>
     </ul>
 

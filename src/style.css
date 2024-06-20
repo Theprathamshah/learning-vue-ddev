@@ -207,6 +207,15 @@ li input {
   color: #fff;
 }
 
+.btn-danger{
+  margin-left: 20px;
+  background-color: rgba(238, 45, 45, 0.747);
+}
+
+.btn-danger:hover{
+  background-color: rgba(238, 45, 45, 0.842);
+}
+
 .btn-primary:hover {
   background: #3490dc;
 }
