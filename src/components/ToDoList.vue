@@ -1,42 +1,105 @@
+
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
 const header = ref('To Do List');
 const newTodo = ref("");
 const priority = ref(false);
-const items = ref([
-    { id: 1, text: "Do leetcode problem", isCompleted: true, isHighPriority: true },
-    { id: 2, text: "Learn caro kann theory", isCompleted: false, isHighPriority: false },
-    { id: 3, text: "Study about backend design patterns", isCompleted: true, isHighPriority: true }
-]);
+const items = ref<Todo[]>([]);
 
-const props = defineProps(['greetings']);
-function toggleCompleted(todo) {
+type Todo = {
+    id: string,
+    text: string,
+    isCompleted: boolean,
+    isHighPriority: boolean,
+};
+
+const props = defineProps<{ greetings: string }>();
+
+function toggleCompleted(todo: Todo) {
     todo.isCompleted = !todo.isCompleted;
 }
 
-function deleteTodo(todo) {
-    items.value = items.value.filter((item) => item.id !== todo.id);
+async function deleteTodo(id: string) {
+    console.log(id);
+    try {
+        
+        const response = await axios.delete(`https://c1atfnipk4.execute-api.ap-south-1.amazonaws.com/dev/todos/${id}`);
+        items.value = items.value.filter((item) => item.id !== id);
+    } catch (error) {
+        console.error('Error deleting todo:', error);
+    }
 }
 
-function addTodo() {
+async function markCompleted(todo:Todo) {
+    try {
+        const response = await axios.put(`https://c1atfnipk4.execute-api.ap-south-1.amazonaws.com/dev/todos/${todo.id}`, {text:todo.text, isCompleted: !todo.isCompleted });
+        
+
+        const updatedTodo = response.data; 
+
+        const todoIndex = items.value.findIndex(item => item.id === todo.id);
+        if (todoIndex !== -1) {
+            items.value[todoIndex].isCompleted = !todo.isCompleted;
+        } else {
+            console.error('Todo not found in local state');
+        }
+
+    } catch (error) {
+        console.error('Error marking todo as completed:', error);
+    }
+}
+
+async function addTodo() {
     if (newTodo.value.trim() === "") return;
 
-    const newId = items.value.length ? items.value[items.value.length - 1].id + 1 : 1;
-    items.value.push({ 
-        id: newId, 
-        text: newTodo.value, 
-        isCompleted: false, 
-        isHighPriority: priority.value 
-    });
+    try {
+        const newTodoItem: Omit<Todo, 'id'> = { 
+            text: newTodo.value, 
+            isCompleted: false, 
+            isHighPriority: priority.value 
+        };
 
-    newTodo.value = "";
-    priority.value = false;
+        // Send POST request to add new todo
+        const response = await axios.post<Todo>(`https://c1atfnipk4.execute-api.ap-south-1.amazonaws.com/dev/todos`, newTodoItem);
+
+        // Update local state with newly created todo
+        items.value.push(response.data);
+
+        // Clear input fields
+        newTodo.value = "";
+        priority.value = false;
+
+    } catch (error) {
+        console.error('Error adding todo:', error);
+    }
 }
+
+// Fetch todos from the API
+async function fetchTodos() {
+    try {
+        const response = await axios.get('https://c1atfnipk4.execute-api.ap-south-1.amazonaws.com/dev/todos');
+        console.log('Response data is ', response.data.data);
+        const todos = response.data.data;
+        items.value = todos.map((item: Todo) => ({
+            id: item.id,
+            text: item.text, 
+            isCompleted: item.isCompleted,
+            isHighPriority: false
+        })) as Todo[];
+    } catch (error) {
+        console.error("Error fetching todos:", error);
+    }
+}
+
+onMounted(() => {
+    fetchTodos();
+});
 </script>
 
 <template>
-    <h1>{{ greetings }}</h1>
+    <h1>{{ props.greetings }}</h1>
     <h3>{{ header }}</h3>
     <form class="add-item-form" @submit.prevent="addTodo">
         <input v-model="newTodo" placeholder="Add new Todo" type="text">
@@ -47,11 +110,11 @@ function addTodo() {
     </form>
     <ul>
         <li v-for="item in items" :key="item.id">
-            <span :class="{ completed: item.isCompleted }" @click="toggleCompleted(item)">
-                {{ item.text }} 
+            <span :class="{ completed: item.isCompleted }" @click="markCompleted(item)">
+                {{ item.text }}
                 <span v-if="item.isHighPriority"> (High Priority) </span>
-            </span> 
-            <button @click="deleteTodo(item)" class="btn btn-danger">Delete</button>
+            </span>
+            <button @click="deleteTodo(item.id)" class="btn btn-danger">Delete</button>
         </li>
     </ul>
 </template>
